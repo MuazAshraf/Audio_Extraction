@@ -1,3 +1,6 @@
+import os
+os.environ["HF_AUDIO_DECODER"] = "soundfile"
+os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
 from transformers import (
     WhisperProcessor, WhisperForConditionalGeneration,
     Seq2SeqTrainingArguments, Seq2SeqTrainer
@@ -23,7 +26,8 @@ print("🚀 Minimal Whisper Fine-Tuning Script")
 processor = WhisperProcessor.from_pretrained("openai/whisper-small")
 model = WhisperForConditionalGeneration.from_pretrained("openai/whisper-small")
 model.config.forced_decoder_ids = None  # Auto-detect language
-
+device = "cuda" if torch.cuda.is_available() else "cpu"
+model.to(device)
 # STEP 2: Load dataset (works without issues!)
 dataset = load_dataset("librispeech_asr", "clean", split="validation")
 dataset = dataset.train_test_split(test_size=0.2)
@@ -40,7 +44,7 @@ def prepare_dataset(batch):
 dataset = dataset.cast_column("audio", Audio(sampling_rate=16000))
 dataset = dataset.map(prepare_dataset, remove_columns=dataset.column_names["train"])
 
-# STEP 4: Data collator (just copy-paste this)
+# STEP 4: Data collator Handles all padding/sizing automatically
 @dataclass
 class DataCollatorSpeechSeq2SeqWithPadding:
     processor: Any
@@ -75,7 +79,7 @@ training_args = Seq2SeqTrainingArguments(
     generation_max_length=225,
 )
 
-# STEP 6: Metric
+# STEP 6: Metric Word Error Rate
 wer_metric = evaluate.load("wer")
 def compute_metrics(pred):
     pred_ids = pred.predictions
@@ -117,7 +121,7 @@ print("✅ Done! Model saved.")
 #     2. Topic of the speech  
 #     3. Key Points 
 #     4. Conclusion""",
-#     input=get_large_audio_transcription_on_silence("audio.wav"),
+#     input=text_output,
 # )
 
 # print(response.output_text)
