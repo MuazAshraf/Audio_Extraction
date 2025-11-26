@@ -7,6 +7,15 @@ from dataclasses import dataclass
 from typing import Any, Dict, List, Union
 import torch
 import evaluate
+from flask import Flask, request, jsonify
+from flask_cors import CORS
+import os
+from openai import OpenAI
+from dotenv import load_dotenv
+load_dotenv('.env')
+
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+client = OpenAI(api_key=OPENAI_API_KEY)
 
 print("🚀 Minimal Whisper Fine-Tuning Script")
 
@@ -95,3 +104,20 @@ trainer.train()
 model.save_pretrained("./whisper-small-finetuned")
 processor.save_pretrained("./whisper-small-finetuned")
 print("✅ Done! Model saved.")
+
+
+
+
+#Extraction part --pending
+# response = client.responses.create(
+#     model="gpt-5",
+#     reasoning={"effort": "low"},
+#     instructions="""Analyze & View the audio Data and carefully without lossing any INORFATION Extract following Information: 
+#     1. Name of the speaker 
+#     2. Topic of the speech  
+#     3. Key Points 
+#     4. Conclusion""",
+#     input=get_large_audio_transcription_on_silence("audio.wav"),
+# )
+
+# print(response.output_text)
