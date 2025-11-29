@@ -1,6 +1,8 @@
 import os
+os.environ["HF_HOME"] = "F:/.cache/HuggingFace" 
 os.environ["HF_AUDIO_DECODER"] = "soundfile"
-os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
+
+
 from transformers import (
     WhisperProcessor, WhisperForConditionalGeneration,
     Seq2SeqTrainingArguments, Seq2SeqTrainer
@@ -10,27 +12,32 @@ from dataclasses import dataclass
 from typing import Any, Dict, List, Union
 import torch
 import evaluate
-from flask import Flask, request, jsonify
-from flask_cors import CORS
-import os
-from openai import OpenAI
-from dotenv import load_dotenv
-load_dotenv('.env')
 
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-client = OpenAI(api_key=OPENAI_API_KEY)
 
-print("🚀 Minimal Whisper Fine-Tuning Script")
+print("Minimal Whisper Fine-Tuning Script")
 
-# STEP 1: Load model (you already have this!)
+# STEP 1: Load model 
 processor = WhisperProcessor.from_pretrained("openai/whisper-small")
 model = WhisperForConditionalGeneration.from_pretrained("openai/whisper-small")
 model.config.forced_decoder_ids = None  # Auto-detect language
 device = "cuda" if torch.cuda.is_available() else "cpu"
 model.to(device)
-# STEP 2: Load dataset (works without issues!)
-dataset = load_dataset("librispeech_asr", "clean", split="validation")
-dataset = dataset.train_test_split(test_size=0.2)
+# STEP 2: Load dataset 70% train, 20% validation, 10% test
+dataset = load_dataset("librispeech_asr", "clean", split="train.100")
+
+# First split: 70% train, 30% temp
+train_temp = dataset.train_test_split(test_size=0.30, seed=42)
+train_dataset = train_temp["train"]  # 70%
+
+# Second split: temp (30%) -> 20% validation, 10% test
+# 20/30 = 0.667 for validation, 10/30 = 0.333 for test
+val_test = train_temp["test"].train_test_split(test_size=0.333, seed=42)
+val_dataset = val_test["train"]    # 20% of original (used during training)
+test_dataset = val_test["test"]    # 10% of original (final evaluation)
+
+print(f"Training samples: {len(train_dataset)}")
+print(f"Validation samples: {len(val_dataset)}")
+print(f"Test samples: {len(test_dataset)}")
 
 # STEP 3: Prepare data (simple preprocessing)
 def prepare_dataset(batch):
@@ -41,10 +48,16 @@ def prepare_dataset(batch):
     batch["labels"] = processor.tokenizer(batch["text"]).input_ids
     return batch
 
-dataset = dataset.cast_column("audio", Audio(sampling_rate=16000))
-dataset = dataset.map(prepare_dataset, remove_columns=dataset.column_names["train"])
+# Cast audio and map preprocessing on each split
+train_dataset = train_dataset.cast_column("audio", Audio(sampling_rate=16000))
+val_dataset = val_dataset.cast_column("audio", Audio(sampling_rate=16000))
+test_dataset = test_dataset.cast_column("audio", Audio(sampling_rate=16000))
 
-# STEP 4: Data collator Handles all padding/sizing automatically
+train_dataset = train_dataset.map(prepare_dataset, remove_columns=train_dataset.column_names)
+val_dataset = val_dataset.map(prepare_dataset, remove_columns=val_dataset.column_names)
+test_dataset = test_dataset.map(prepare_dataset, remove_columns=test_dataset.column_names)
+
+# STEP 4: Data collator 
 @dataclass
 class DataCollatorSpeechSeq2SeqWithPadding:
     processor: Any
@@ -67,24 +80,31 @@ data_collator = DataCollatorSpeechSeq2SeqWithPadding(processor=processor)
 # STEP 5: Training settings (CPU-friendly!)
 training_args = Seq2SeqTrainingArguments(
     output_dir="./whisper-finetuned",
-    per_device_train_batch_size=4,
+    per_device_train_batch_size=8, #look 8 audios at a time
     num_train_epochs=3,
-    learning_rate=1e-5,
-    fp16=False,  # CPU
-    eval_strategy="steps",
-    save_steps=500,
-    eval_steps=500,
+    learning_rate=1e-5, #(0.00001)
+    fp16=True,  # GPU
+    evaluation_strategy="epoch",
+    save_strategy="epoch",
+
     logging_steps=100,
     predict_with_generate=True,
     generation_max_length=225,
+
+    gradient_accumulation_steps=1,
+    save_total_limit=3,
 )
 
-# STEP 6: Metric Word Error Rate
+# STEP 6: Metric
 wer_metric = evaluate.load("wer")
 def compute_metrics(pred):
-    pred_ids = pred.predictions
+    #models output and labels output
+    pred_ids = pred.predictions 
     label_ids = pred.label_ids
+    # Get out the -100 which we added in datacollector. so we replace with pad token id. to ignore at the time of decoding.
     label_ids[label_ids == -100] = processor.tokenizer.pad_token_id
+    
+    #Decode -> Numbers to text REAL TEXT
     pred_str = processor.tokenizer.batch_decode(pred_ids, skip_special_tokens=True)
     label_str = processor.tokenizer.batch_decode(label_ids, skip_special_tokens=True)
     wer = wer_metric.compute(predictions=pred_str, references=label_str)
@@ -94,34 +114,22 @@ def compute_metrics(pred):
 trainer = Seq2SeqTrainer(
     model=model,
     args=training_args,
-    train_dataset=dataset["train"],
-    eval_dataset=dataset["test"],
+    train_dataset=train_dataset,
+    eval_dataset=val_dataset,  # Validation set for monitoring during training
     data_collator=data_collator,
     compute_metrics=compute_metrics,
-    tokenizer=processor.feature_extractor,
+    processing_class=processor.feature_extractor,
 )
 
-print("⏳ Training...")
-trainer.train()
+print("Training...")
+trainer.train(resume_from_checkpoint=True)
 
-# STEP 8: Save
+# STEP 8: Final evaluation on TEST set (unseen data)
+print("Final Evaluation on Test Set...")
+test_results = trainer.evaluate(test_dataset)
+print(f"Test WER: {test_results['eval_wer']:.2%}")
+
+# STEP 9: Save
 model.save_pretrained("./whisper-small-finetuned")
 processor.save_pretrained("./whisper-small-finetuned")
-print("✅ Done! Model saved.")
-
-
-
-
-#Extraction part --pending
-# response = client.responses.create(
-#     model="gpt-5",
-#     reasoning={"effort": "low"},
-#     instructions="""Analyze & View the audio Data and carefully without lossing any INORFATION Extract following Information: 
-#     1. Name of the speaker 
-#     2. Topic of the speech  
-#     3. Key Points 
-#     4. Conclusion""",
-#     input=text_output,
-# )
-
-# print(response.output_text)
+print("Model saved.")
