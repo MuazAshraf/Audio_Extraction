@@ -152,7 +152,7 @@ def summarize_mfcc(mfcc):
 
     Here we use:
       - mean over time
-      - std over time
+      - std over time 
 
     => feature length = 2 * N_MFCC
     """
