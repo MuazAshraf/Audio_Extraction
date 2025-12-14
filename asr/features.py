@@ -5,6 +5,7 @@ from typing import Optional, Tuple
 
 import numpy as np
 import librosa
+import torch
 
 
 def compute_mel_spectrogram(
@@ -94,3 +95,22 @@ def compute_mfcc(
     if len(feats) == 1:
         return feats[0]
     return np.vstack(feats)
+
+
+def get_spectrogram_for_cnn(audio_path: str) -> torch.Tensor:
+    # Load audio at 16kHz
+    y, sr = librosa.load(audio_path, sr=16000, mono=True)
+    
+    # Compute mel spectrogram with n_mels=128 (CNN expects this)
+    mel = librosa.feature.melspectrogram(
+        y=y, 
+        sr=sr, 
+        n_mels=128,
+        n_fft=400,
+        hop_length=160
+    )
+    
+    # Convert to dB scale
+    mel_db = librosa.power_to_db(mel, ref=np.max)
+    
+    return torch.tensor(mel_db, dtype=torch.float32)
