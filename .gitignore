@@ -1,6 +1,6 @@
-.venv/
-.env
-.env.*
+.pycache/
 __pycache__/
-1.mp3
-*.png
+.vscode/
+.idea/
+.pytest_cache/
+.pytest_cache/
