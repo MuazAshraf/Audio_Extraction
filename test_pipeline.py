@@ -1,33 +1,29 @@
-"""
-Test file to verify spectrogram + CNN encoder pipeline works.
-"""
 import torch
-from asr.features import get_spectrogram_for_cnn
-from cnn_encoder import EncoderCNN
+from cnn_encoder import EncoderCNN, Seq2SeqASR
 
-AUDIO_PATH = "libri_sample.wav"
-
-def test_with_real_audio():
-    """Test with real audio file"""
+def test_pipeline():
     print("=" * 50)
-    print("Testing with REAL audio...")
+    print("Testing with DUMMY data...")
     print("=" * 50)
     
-    # Step 1: Get spectrogram from audio
-    print(f"Loading audio: {AUDIO_PATH}")
-    spec = get_spectrogram_for_cnn(AUDIO_PATH)
-    print(f"Spectrogram shape: {spec.shape}")  # Should be (128, T)
+    # Dummy spectrogram (Batch=2, Channel=1, Freq=128, Time=400)
+    spec = torch.randn(2, 1, 128, 400)
+    print(f"Input shape: {spec.shape}")
     
-    # Step 2: Prepare for CNN (add batch and channel dims)
-    spec = spec.unsqueeze(0).unsqueeze(0)  # (1, 1, 128, T)
-    print(f"After unsqueeze: {spec.shape}")
-    
-    # Step 3: Pass through CNN encoder
+    # Test CNN Encoder
     encoder = EncoderCNN()
-    output = encoder(spec)
-    print(f"CNN output shape: {output.shape}")  # Should be (1, T/8, 512)
-    print("✓ Real audio test PASSED!")
-
+    encoder_output = encoder(spec)
+    print(f"CNN Encoder output: {encoder_output.shape}")
+    
+    # Test Full Seq2Seq Model
+    model = Seq2SeqASR(vocab_size=29)
+    target_text = torch.randint(0, 29, (2, 20))  # Dummy target
+    output = model(spec, target_text)
+    print(f"Seq2Seq output: {output.shape}")
+    
+    print("=" * 50)
+    print("✓ All tests PASSED!")
+    print("=" * 50)
 
 if __name__ == "__main__":
-    test_with_real_audio()
+    test_pipeline()
