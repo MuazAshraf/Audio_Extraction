@@ -1,5 +1,7 @@
 import os
-os.environ["HF_HOME"] = "/workspace/hf_cache"
+cache_dir = "/workspace/hf_cache_v2"
+os.environ["HF_HOME"] = cache_dir
+os.environ["HF_DATASETS_CACHE"] = cache_dir
 os.environ["HF_AUDIO_DECODER"] = "soundfile"
 import torch
 import torch.nn as nn
@@ -89,7 +91,7 @@ data_collator = DataCollatorASR()
 
 # Load and split data (70/20/10)
 print("Loading dataset...")
-dataset = load_dataset("SPRINGLab/LibriSpeech-100", split='train')
+dataset = load_dataset("SPRINGLab/LibriSpeech-100", split='train', cache_dir=cache_dir)
 
 # Split: 70% train, 30% temp
 train_temp = dataset.train_test_split(test_size=0.30, seed=42)
