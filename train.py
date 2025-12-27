@@ -1,3 +1,6 @@
+import os
+os.environ["HF_HOME"] = "/workspace/hf_cache"
+os.environ["HF_AUDIO_DECODER"] = "soundfile"
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
@@ -10,8 +13,6 @@ import evaluate
 
 from vocab import Vocabulary
 from cnn_encoder import Seq2SeqASR
-import os
-os.environ["HF_HOME"] = "/workspace/hf_cache"
 # Config
 BATCH_SIZE = 8
 EPOCHS = 10
