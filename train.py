@@ -18,7 +18,7 @@ from cnn_encoder import Seq2SeqASR
 
 # Config
 BATCH_SIZE = 8
-EPOCHS = 30
+EPOCHS = 10
 LEARNING_RATE = 0.0003  # Lower learning rate
 CACHE_DIR = "/workspace/hf_cache_v2/downloads"
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
