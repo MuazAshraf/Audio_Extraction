@@ -90,10 +90,8 @@ data_collator = DataCollatorASR()
 
 
 # Load and split data (70/20/10)
-print("Loading dataset via streaming...")
-streaming_dataset = load_dataset("SPRINGLab/LibriSpeech-100", split='train', streaming=True)
-print("Converting to regular dataset (this may take a while)...")
-dataset = Dataset.from_generator(lambda: iter(streaming_dataset), features=streaming_dataset.features)
+print("Loading dataset")
+dataset = load_dataset("librispeech_asr", "clean", split="train.100")
 
 # Split: 70% train, 30% temp
 train_temp = dataset.train_test_split(test_size=0.30, seed=42)
