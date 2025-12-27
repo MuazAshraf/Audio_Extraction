@@ -7,3 +7,17 @@ __pycache__/
 .venv/
 .env
 *.env
+*.jpg*
+*.png*
+# Model outputs
+whisper-small-finetuned/
+model_*.pt
+*.pt
+
+# HuggingFace cache
+hf_cache/
+
+# Data folders
+data/
+outputs/
+scripts/
