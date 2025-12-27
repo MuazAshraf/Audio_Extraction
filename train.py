@@ -109,9 +109,9 @@ train_data = train_data.cast_column("audio", Audio(sampling_rate=16000))
 val_data = val_data.cast_column("audio", Audio(sampling_rate=16000))
 test_data = test_data.cast_column("audio", Audio(sampling_rate=16000))
 
-train_data = train_data.map(prepare_dataset, remove_columns=["audio", "speaker", "id"])
-val_data = val_data.map(prepare_dataset, remove_columns=["audio", "speaker", "id"])
-test_data = test_data.map(prepare_dataset, remove_columns=["audio", "speaker", "id"])
+train_data = train_data.map(prepare_dataset, remove_columns=train_data.column_names)
+val_data = val_data.map(prepare_dataset, remove_columns=val_data.column_names)
+test_data = test_data.map(prepare_dataset, remove_columns=test_data.column_names)
 
 # DataLoaders
 train_loader = DataLoader(train_data, batch_size=BATCH_SIZE, shuffle=True, collate_fn=data_collator)
