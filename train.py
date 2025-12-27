@@ -18,10 +18,11 @@ from cnn_encoder import Seq2SeqASR
 
 # Config
 BATCH_SIZE = 8
-EPOCHS = 10
-LEARNING_RATE = 0.001
+EPOCHS = 30
+LEARNING_RATE = 0.0003  # Lower learning rate
 CACHE_DIR = "/workspace/hf_cache_v2/downloads"
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+GRAD_CLIP = 5.0  # Gradient clipping
 
 print(f"Using device: {DEVICE}")
 
@@ -179,6 +180,7 @@ model = model.to(DEVICE)
 # Loss and optimizer
 criterion = nn.CrossEntropyLoss(ignore_index=0)
 optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE)
+scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=3, verbose=True)
 
 
 # Validation function
@@ -218,32 +220,44 @@ def validate(model, loader):
 # Training loop
 print("Starting training...")
 best_wer = float('inf')
+start_epoch = 0
 
-for epoch in range(EPOCHS):
+# Resume from checkpoint if exists
+checkpoint_path = "model_epoch_4.pt"
+if os.path.exists(checkpoint_path):
+    model.load_state_dict(torch.load(checkpoint_path))
+    start_epoch = 4
+    print(f"Resumed from {checkpoint_path}, starting at epoch {start_epoch + 1}")
+
+for epoch in range(start_epoch, EPOCHS):
     model.train()
     total_loss = 0
+
+    # Teacher forcing: start high (0.9) and decay
+    teacher_forcing_ratio = max(0.5, 0.9 - epoch * 0.05)
 
     for batch_idx, batch in enumerate(train_loader):
         specs = batch["spectrogram"].to(DEVICE)
         labels = batch["labels"].to(DEVICE)
 
-        # Forward
-        output = model(specs, labels)
+        # Forward with teacher forcing
+        output = model(specs, labels, teacher_forcing=teacher_forcing_ratio)
 
         # Loss
         output = output.reshape(-1, vocab.vocab_size)
         labels_loss = labels[:, 1:].reshape(-1)
         loss = criterion(output, labels_loss)
 
-        # Backward
+        # Backward with gradient clipping
         optimizer.zero_grad()
         loss.backward()
+        torch.nn.utils.clip_grad_norm_(model.parameters(), GRAD_CLIP)
         optimizer.step()
 
         total_loss += loss.item()
 
         if batch_idx % 100 == 0:
-            print(f"Epoch {epoch+1}, Batch {batch_idx}, Loss: {loss.item():.4f}")
+            print(f"Epoch {epoch+1}, Batch {batch_idx}, Loss: {loss.item():.4f}, TF: {teacher_forcing_ratio:.2f}")
 
     # Training stats
     train_loss = total_loss / len(train_loader)
@@ -254,6 +268,9 @@ for epoch in range(EPOCHS):
     print(f"Epoch {epoch+1}/{EPOCHS}")
     print(f"  Train Loss: {train_loss:.4f}")
     print(f"  Val Loss: {val_loss:.4f} | Val WER: {val_wer:.4f}")
+
+    # Learning rate scheduler
+    scheduler.step(val_loss)
 
     # Save best model
     if val_wer < best_wer:
