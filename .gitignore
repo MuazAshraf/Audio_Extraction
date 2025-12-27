@@ -19,5 +19,6 @@ hf_cache/
 
 # Data folders
 data/
+asr/
 outputs/
 scripts/

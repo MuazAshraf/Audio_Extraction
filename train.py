@@ -90,7 +90,7 @@ data_collator = DataCollatorASR()
 
 # Load and split data (70/20/10)
 print("Loading dataset...")
-dataset = load_dataset("SPRINGLab/LibriSpeech-100")
+dataset = load_dataset("SPRINGLab/LibriSpeech-100", split='train')
 
 # Split: 70% train, 30% temp
 train_temp = dataset.train_test_split(test_size=0.30, seed=42)
