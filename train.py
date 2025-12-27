@@ -6,7 +6,7 @@ os.environ["HF_AUDIO_DECODER"] = "soundfile"
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
-from datasets import load_dataset, Audio
+from datasets import load_dataset, Audio, Dataset
 from dataclasses import dataclass
 from typing import Any, Dict, List
 import librosa
@@ -90,8 +90,10 @@ data_collator = DataCollatorASR()
 
 
 # Load and split data (70/20/10)
-print("Loading dataset...")
-dataset = load_dataset("SPRINGLab/LibriSpeech-100", split='train', cache_dir=cache_dir)
+print("Loading dataset via streaming...")
+streaming_dataset = load_dataset("SPRINGLab/LibriSpeech-100", split='train', streaming=True)
+print("Converting to regular dataset (this may take a while)...")
+dataset = Dataset.from_generator(lambda: iter(streaming_dataset), features=streaming_dataset.features)
 
 # Split: 70% train, 30% temp
 train_temp = dataset.train_test_split(test_size=0.30, seed=42)
