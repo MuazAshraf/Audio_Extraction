@@ -222,12 +222,8 @@ print("Starting training...")
 best_wer = float('inf')
 start_epoch = 0
 
-# Resume from checkpoint if exists
-checkpoint_path = "model_epoch_4.pt"
-if os.path.exists(checkpoint_path):
-    model.load_state_dict(torch.load(checkpoint_path))
-    start_epoch = 4
-    print(f"Resumed from {checkpoint_path}, starting at epoch {start_epoch + 1}")
+# NOTE: Model architecture changed - starting fresh training
+# Old checkpoints are incompatible with new model (added batch norm + init_hidden layer)
 
 for epoch in range(start_epoch, EPOCHS):
     model.train()

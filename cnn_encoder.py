@@ -13,12 +13,15 @@ class EncoderCNN(nn.Module):
         super(EncoderCNN, self).__init__()
 
         self.conv1 = nn.Conv2d(in_channels, base_channels, kernel_size=3, stride=(1, 1), padding=1)
+        self.bn1 = nn.BatchNorm2d(base_channels)
         self.pool1 = nn.MaxPool2d(kernel_size=2, stride=2)
 
         self.conv2 = nn.Conv2d(base_channels, base_channels*2, kernel_size=3, stride=(1, 1), padding=1)
+        self.bn2 = nn.BatchNorm2d(base_channels*2)
         self.pool2 = nn.MaxPool2d(kernel_size=2, stride=2)
 
         self.conv3 = nn.Conv2d(base_channels*2, base_channels*4, kernel_size=3, stride=(1, 1), padding=1)
+        self.bn3 = nn.BatchNorm2d(base_channels*4)
         self.pool3 = nn.MaxPool2d(kernel_size=2, stride=2)
 
         self.flat_feature_dim = 16 * (base_channels * 4)
@@ -26,9 +29,9 @@ class EncoderCNN(nn.Module):
         self.dropout = nn.Dropout(0.3)
 
     def forward(self, x):
-        x = self.pool1(F.relu(self.conv1(x)))
-        x = self.pool2(F.relu(self.conv2(x)))
-        x = self.pool3(F.relu(self.conv3(x)))
+        x = self.pool1(F.relu(self.bn1(self.conv1(x))))
+        x = self.pool2(F.relu(self.bn2(self.conv2(x))))
+        x = self.pool3(F.relu(self.bn3(self.conv3(x))))
 
         x = x.permute(0, 3, 1, 2)
 
@@ -101,14 +104,17 @@ class Seq2SeqASR(nn.Module):
         self.encoder = EncoderCNN()
         self.attention = Attention(hidden_dim=512, encoder_dim=512)
         self.decoder = DecoderGRU(vocab_size, hidden_dim=512, encoder_dim=512)
+        # Initialize decoder hidden from encoder
+        self.init_hidden = nn.Linear(512, 512)
 
     def forward(self, spectrogram, target_text, teacher_forcing=0.5):
         # Encode
         encoder_output = self.encoder(spectrogram)  # (B, T, 512)
 
-        # Initialize
+        # Initialize hidden from encoder (use mean of encoder outputs)
         batch_size = spectrogram.size(0)
-        hidden = torch.zeros(1, batch_size, 512).to(spectrogram.device)
+        encoder_mean = encoder_output.mean(dim=1)  # (B, 512)
+        hidden = torch.tanh(self.init_hidden(encoder_mean)).unsqueeze(0)  # (1, B, 512)
         input_char = target_text[:, 0]  # <sos>
 
         outputs = []
