@@ -9,10 +9,11 @@ from dataclasses import dataclass
 from typing import Any, Dict, List
 import librosa
 import numpy as np
-import evaluate
+from jiwer import wer as compute_wer
 
 from vocab import Vocabulary
 from cnn_encoder import Seq2SeqASR
+
 # Config
 BATCH_SIZE = 8
 EPOCHS = 10
@@ -24,9 +25,6 @@ print(f"Using device: {DEVICE}")
 # Vocabulary
 vocab = Vocabulary()
 print(f"Vocab size: {vocab.vocab_size}")
-
-# WER Metric (using evaluate library)
-wer_metric = evaluate.load("wer")
 
 
 # Preprocessing function
@@ -156,7 +154,7 @@ def validate(model, loader):
                 all_refs.append(texts[i].lower())
     
     avg_loss = total_loss / len(loader)
-    wer = wer_metric.compute(predictions=all_preds, references=all_refs)
+    wer = compute_wer(all_refs, all_preds)
     
     return avg_loss, wer
 
