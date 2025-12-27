@@ -119,7 +119,6 @@ class Seq2SeqASR(nn.Module):
 
         outputs = []
         for t in range(1, target_text.size(1)):
-            
             # Attention
             context, weights = self.attention(hidden[-1], encoder_output)
 
