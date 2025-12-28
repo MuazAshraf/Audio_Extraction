@@ -223,10 +223,10 @@ best_wer = float('inf')
 start_epoch = 0
 
 # Resume from checkpoint if exists
-checkpoint_path = "model_epoch_1.pt"
+checkpoint_path = "model_epoch_4.pt"
 if os.path.exists(checkpoint_path):
     model.load_state_dict(torch.load(checkpoint_path))
-    start_epoch = 1
+    start_epoch = 4
     print(f"Resumed from {checkpoint_path}, starting at epoch {start_epoch + 1}")
 
 for epoch in range(start_epoch, EPOCHS):
