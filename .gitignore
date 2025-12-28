@@ -11,8 +11,7 @@ __pycache__/
 *.png*
 # Model outputs
 whisper-small-finetuned/
-model_*.pt
-*.pt
+
 
 # HuggingFace cache
 hf_cache/
