@@ -12,15 +12,15 @@ class EncoderCNN(nn.Module):
     def __init__(self, in_channels=1, base_channels=32):
         super(EncoderCNN, self).__init__()
 
-        self.conv1 = nn.Conv2d(in_channels, base_channels, kernel_size=3, stride=(1, 1), padding=1)
+        self.conv1 = nn.Conv2d(in_channels, base_channels, kernel_size=3, stride=1, padding=1)
         self.bn1 = nn.BatchNorm2d(base_channels)
         self.pool1 = nn.MaxPool2d(kernel_size=2, stride=2)
 
-        self.conv2 = nn.Conv2d(base_channels, base_channels*2, kernel_size=3, stride=(1, 1), padding=1)
+        self.conv2 = nn.Conv2d(base_channels, base_channels*2, kernel_size=3, stride=1, padding=1)
         self.bn2 = nn.BatchNorm2d(base_channels*2)
         self.pool2 = nn.MaxPool2d(kernel_size=2, stride=2)
 
-        self.conv3 = nn.Conv2d(base_channels*2, base_channels*4, kernel_size=3, stride=(1, 1), padding=1)
+        self.conv3 = nn.Conv2d(base_channels*2, base_channels*4, kernel_size=3, stride=1, padding=1)
         self.bn3 = nn.BatchNorm2d(base_channels*4)
         self.pool3 = nn.MaxPool2d(kernel_size=2, stride=2)
 
@@ -43,9 +43,6 @@ class EncoderCNN(nn.Module):
 
 
 class Attention(nn.Module):
-    """
-    Bahdanau Attention mechanism
-    """
     def __init__(self, hidden_dim, encoder_dim):
         super().__init__()
         self.attn = nn.Linear(hidden_dim + encoder_dim, hidden_dim)
@@ -71,12 +68,8 @@ class Attention(nn.Module):
 
 
 class DecoderGRU(nn.Module):
-    """
-    GRU Decoder with Attention
-    """
-    def __init__(self, vocab_size=29, embed_dim=256, hidden_dim=512, encoder_dim=512):
+    def __init__(self, vocab_size=31, embed_dim=256, hidden_dim=512, encoder_dim=512):
         super().__init__()
-
         self.embedding = nn.Embedding(vocab_size, embed_dim)
         self.gru = nn.GRU(embed_dim + encoder_dim, hidden_dim, batch_first=True)
         self.fc_out = nn.Linear(hidden_dim, vocab_size)

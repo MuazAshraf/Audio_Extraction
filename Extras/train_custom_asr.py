@@ -1,8 +1,3 @@
-"""
-Quick smoke test for the custom CNN+GRU ASR model on a small local LibriSpeech
-subset, with greedy decoding and CER/WER reporting.
-"""
-
 from __future__ import annotations
 
 from pathlib import Path
